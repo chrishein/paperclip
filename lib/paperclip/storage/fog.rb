@@ -129,7 +129,11 @@ module Paperclip
           directory.files.new(:key => path(style)).public_url
         end
       end
-
+      
+      def authenticated_url(style = default_style, expiration_time)
+        directory.files.get_https_url(path(style), expiration_time)
+      end
+      
       def parse_credentials(creds)
         creds = find_credentials(creds).stringify_keys
         env = Object.const_defined?(:Rails) ? Rails.env : nil
