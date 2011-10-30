@@ -139,6 +139,10 @@ module Paperclip
         env = Object.const_defined?(:Rails) ? Rails.env : nil
         (creds[env] || creds).symbolize_keys
       end
+      
+      def directory
+        @directory ||= connection.directories.new(:key => @options.fog_directory)
+      end
 
       private
 
@@ -159,9 +163,6 @@ module Paperclip
         @connection ||= ::Fog::Storage.new(fog_credentials)
       end
 
-      def directory
-        @directory ||= connection.directories.new(:key => @options.fog_directory)
-      end
     end
   end
 end
