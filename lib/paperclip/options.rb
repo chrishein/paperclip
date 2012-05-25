@@ -54,6 +54,10 @@ module Paperclip
       @fog_host              = hash[:fog_host]
       @fog_public            = hash[:fog_public]
       @fog_file              = hash[:fog_file]
+      
+      @cloudfront_host       = hash[:cloudfront_host]
+      @cloudfront_access_key = hash[:cloudfront_access_key]
+      @cloudfront_private_key = hash[:cloudfront_private_key]
     end
 
     def method_missing(method, *args, &blk)

@@ -35,6 +35,10 @@ module Paperclip
       def self.extended base
         begin
           require 'fog'
+          require 'base64'
+          require 'openssl'
+          require 'digest/sha1'
+          
         rescue LoadError => e
           e.message << " (You may need to install the fog gem)"
           raise e
@@ -54,6 +58,14 @@ module Paperclip
       def exists?(style = default_style)
         if original_filename
           !!directory.files.head(path(style))
+        else
+          false
+        end
+      end
+      
+      def filename_exists?(filename)
+        if filename
+          !!directory.files.head(filename)
         else
           false
         end
@@ -131,7 +143,23 @@ module Paperclip
       end
       
       def authenticated_url(style = default_style, expiration_time)
-        directory.files.get_https_url(path(style), expiration_time)
+        expiring_url(expiration_time, style)
+      end
+      
+      def expiring_url(time = 3600, style_name = default_style)
+        directory.files.get_https_url(path(style_name), time)
+      end
+      
+      def expiring_cloudfront_url(time = 3600, style_name = default_style)
+        generate_cloudfront_url("https://#{@options.cloudfront_host}/#{path(style_name)}", time.to_i)
+      end
+      
+      def filename_expiring_url(filename, time = 3600)
+        directory.files.get_https_url(filename, time)
+      end
+      
+      def filename_expiring_cloudfront_url(filename, time = 3600)
+        generate_cloudfront_url("https://#{@options.cloudfront_host}/#{filename}", time.to_i)
       end
       
       def parse_credentials(creds)
@@ -162,6 +190,23 @@ module Paperclip
       def connection
         @connection ||= ::Fog::Storage.new(fog_credentials)
       end
+      
+      def generate_cloudfront_url(resource, expire_time)
+        o = sign(resource, expire_time)
+        "#{resource}?Expires=#{o[:expires]}&Signature=#{o[:signature]}&Key-Pair-Id=#{@options.cloudfront_access_key}"
+      end
+
+      def sign(resource, expire_time)
+        request_string = "{\"Statement\":[{\"Resource\":\"#{resource}\",\"Condition\":{\"DateLessThan\":{\"AWS:EpochTime\":#{expire_time}}}}]}"
+        signature = generate_signature(request_string)
+        {:expires => expire_time, :signature => signature}
+      end
+
+      def generate_signature(request_string)
+        signature = @options.cloudfront_private_key.sign(OpenSSL::Digest::SHA1.new, request_string)
+        Base64.encode64(signature).gsub("\n","").gsub("+","-").gsub("=","_").gsub("/","~")
+      end
+      
 
     end
   end
