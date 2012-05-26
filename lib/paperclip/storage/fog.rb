@@ -147,19 +147,19 @@ module Paperclip
       end
       
       def expiring_url(time = 3600, style_name = default_style)
-        directory.files.get_https_url(path(style_name), time)
-      end
-      
-      def expiring_cloudfront_url(time = 3600, style_name = default_style)
-        generate_cloudfront_url("https://#{@options.cloudfront_host}/#{path(style_name)}", time.to_i)
+        if @options.cloudfront_host
+          generate_cloudfront_url("https://#{@options.cloudfront_host}/#{path(style_name)}", time.to_i)
+        else
+          directory.files.get_https_url(path(style_name), time)
+        end
       end
       
       def filename_expiring_url(filename, time = 3600)
-        directory.files.get_https_url(filename, time)
-      end
-      
-      def filename_expiring_cloudfront_url(filename, time = 3600)
-        generate_cloudfront_url("https://#{@options.cloudfront_host}/#{filename}", time.to_i)
+        if @options.cloudfront_host
+          directory.files.get_https_url(filename, time)
+        else
+          generate_cloudfront_url("https://#{@options.cloudfront_host}/#{filename}", time.to_i)
+        end
       end
       
       def parse_credentials(creds)
