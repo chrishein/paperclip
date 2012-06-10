@@ -156,9 +156,9 @@ module Paperclip
       
       def filename_expiring_url(filename, time = 3600)
         if @options.cloudfront_host
-          directory.files.get_https_url(filename, time)
-        else
           generate_cloudfront_url("https://#{@options.cloudfront_host}/#{filename}", time.to_i)
+        else
+          directory.files.get_https_url(filename, time)
         end
       end
       
