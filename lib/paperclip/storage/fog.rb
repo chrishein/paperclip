@@ -139,7 +139,10 @@ module Paperclip
       end
 
       def expiring_url(time = (Time.now + 3600), style = default_style)
-        if directory.files.respond_to?(:get_http_url)
+        if @options.has_key?(:fog_host) && @options.has_key?(:cloudfront_private_key)
+          expiring_url = signed_cloudfront_url("https://#{dynamic_fog_host_for_style(style)}/#{path(style)}", time)
+          
+        elsif directory.files.respond_to?(:get_http_url)
           expiring_url = directory.files.get_http_url(path(style), time)
 
           if @options[:fog_host]
@@ -217,6 +220,33 @@ module Paperclip
 
         @directory ||= connection.directories.new(:key => dir)
       end
+      
+      def signed_cloudfront_url(resource, expire_time)
+        o = sign(resource, expire_time)
+        "#{resource}?Expires=#{o[:expires]}&Signature=#{o[:signature]}&Key-Pair-Id=#{@options[:cloudfront_access_key]}"
+      end
+
+      def sign(resource, expire_time)
+        expire_time = expire_time.to_i
+        request_string = "{\"Statement\":[{\"Resource\":\"#{resource}\",\"Condition\":{\"DateLessThan\":{\"AWS:EpochTime\":#{expire_time}}}}]}"
+        signature = generate_signature(request_string)
+        {:expires => expire_time, :signature => signature}
+      end
+
+      def generate_signature(request_string)
+        signature = cloudfront_private_key.sign(OpenSSL::Digest::SHA1.new, request_string)
+        Base64.encode64(signature).gsub("\n","").gsub("+","-").gsub("=","_").gsub("/","~")
+      end
+      
+      def cloudfront_private_key
+        @cloudfront_private_key ||= read_cloudfront_private_key
+      end
+      
+      def read_cloudfront_private_key
+        require 'openssl'
+        OpenSSL::PKey::RSA.new(File.readlines(@options[:cloudfront_private_key]).join(''))
+      end
+      
     end
   end
 end
